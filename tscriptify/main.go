@@ -102,7 +102,8 @@ func main() {
 		ModelsPackage: packagePath,
 		TargetFile:    target,
 		InitParams: map[string]interface{}{
-			"BackupDir": fmt.Sprintf(`"%s"`, backupDir),
+			"BackupDir":       fmt.Sprintf(`"%s"`, backupDir),
+			"CreateInterface": true,
 		},
 	}
 	err = t.Execute(f, p)
@@ -118,6 +119,16 @@ func main() {
 	fmt.Println(string(output))
 }
 
+func Filter(vs []string, f func(string) bool) []string {
+	vsf := make([]string, 0)
+	for _, v := range vs {
+		if f(v) {
+			vsf = append(vsf, v)
+		}
+	}
+	return vsf
+}
+
 func GetGolangFileStructs(filename string) ([]string, error) {
 	fset := token.NewFileSet() // positions are relative to fset
 
@@ -129,7 +140,17 @@ func GetGolangFileStructs(filename string) ([]string, error) {
 	v := &AVisitor{}
 	ast.Walk(v, f)
 
-	return v.structs, nil
+	filteredStructs := Filter(v.structs, func(item string) bool {
+		subStr := string([]rune(item)[0:1])
+
+		if strings.ToLower(subStr) == subStr {
+			return false
+		}
+
+		return !strings.HasPrefix(item, "XXX_")
+	})
+
+	return filteredStructs, nil
 }
 
 type AVisitor struct {
